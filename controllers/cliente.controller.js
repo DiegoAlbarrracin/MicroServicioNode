@@ -93,6 +93,42 @@ exports.findAll = (req, res) => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Find a single Cliente with an id
   var idCliente;
   var nombre;
@@ -142,65 +178,139 @@ exports.findOne = (req, res) => {
       });
   };
 
+  //Token para validar que tengo acceso al microservicio en Go
+  const tokenGoLocal = 'tokenDeGoEnNodejs';
+
+  //Token para validar que tengo acceso al microservicio en Python
+  const tokenPythonLocal = 'tokenDePythonEnNodejs';
+
   async function llamarMicrosGo() {
-    console.log(idCliente + nombre + dni + telefono + email + procesadoPor);
+   
+    const clienteNode = {    
+      
+      idCliente: idCliente,
+      nombre: nombre,
+      dni: dni,
+      telefono: telefono,
+      email: email,
+      procesadoPor: procesadoPor,
+      
+    };
 
-    //Envio la data a Go mediante un post, me responde y almaceno la data procesada en respGo
-    axios.post('http://localhost:7000/microserviciosGo', {
-          idCliente: idCliente,
-          nombre: nombre,
-          dni: dni,
-          telefono: telefono,
-          email: email,
-          procesadoPor: procesadoPor,
-        })
-        .then(function (response) {
-          console.log(response.data);
-        })
-        .catch(function (error) {
-          console.log(error);
-        });
+    const clienteGo = {    
+      
+      idCliente: idCliente,
+      nombre: nombre,
+      dni: dni,
+      telefono: telefono,
+      email: email,
+      procesadoPor: procesadoPor,
+      
+    };
 
-    //Envio la data a Python, que luego procesara y enviara un mail a mi correo para comprobar que se han comunicado los microservicios.
-    axios.post('http://localhost:3700python', {
-          peticion1: String(peticiones[0]),
-          peticion2: String(peticiones[1]),
-          peticion3: String(peticiones[2]),
-          peticion4: String(peticiones[3]),
-          peticion5: String(peticiones[4]),
-        })
-        .then(function (response) {
-          console.log(response.data);
-        })
-        .catch(function (error) {
-          console.log(error);
-        });
+    //Valido acceso a microservicio en Go, mediante un token que debe corresponderse al esperado
+    //por Go para recibir peticiones
+    const tokenGo = await axios.get('http://localhost:7000/getTokenGo');
+
+    if(tokenGo.data.token == tokenGoLocal){
+
+      //Si tenemos acceso al microservicio de Go entonces:
+      //Envio la data a Go mediante un post, me responde y almaceno la data procesada en respGo
+      await axios.post('http://localhost:7000/msGo', {
+        idCliente: idCliente,
+        nombre: nombre,
+        dni: dni,
+        telefono: telefono,
+        email: email,
+        procesadoPor: procesadoPor,
+      })
+      .then(function (response) {
+
+        //Obtengo los datos del response de Go (Informacion procesada por Node) y lo almaceno en un objeto de tipo Cliente
+        clienteNode.idCliente = response.data[0].idCliente
+        clienteNode.nombre = response.data[0].nombre
+        clienteNode.dni = response.data[0].dni
+        clienteNode.telefono = response.data[0].telefono
+        clienteNode.email = response.data[0].email
+        clienteNode.procesadoPor = response.data[0].procesadoPor
+        console.log(response.data)
+
+        //Obtengo los datos del response de Go (Informacion procesada por Go) y lo almaceno en un objeto de tipo Cliente
+        clienteGo.idCliente = response.data[1].idCliente
+        clienteGo.nombre = response.data[1].nombre
+        clienteGo.dni = response.data[1].dni
+        clienteGo.telefono = response.data[1].telefono
+        clienteGo.email = response.data[1].email
+        clienteGo.procesadoPor = response.data[1].procesadoPor
+        console.log("Informacion Go" + clienteGo.procesadoPor)
+
+
+        //console.log('Obtenido ' + clienteGo.procesadoPor)
+
+        //console.log(response.data[0].nombre);
+      })
+      .catch(function (error) {
+        console.log(error);
+      });
+
+        
+    }else{
+      console.log('Token incorrecto. Sin acceso');
+    }
+
+    //
+
+    //Valido acceso a microservicio en Python, mediante un token que debe corresponderse al esperado
+    //por Python para recibir peticiones
+    const tokenPython = await axios.get('http://localhost:8000/tokenPython');
+
+    if(tokenPython.data.token == tokenPythonLocal){
+
+      //Envio la data a Python, que luego procesara y enviara un mail a mi correo para comprobar que se han comunicado todos los microservicios.
+      await  axios.post('http://localhost:8000/msPython', clienteNode)
+          .then(function (response) {
+            console.log(response.data);
+          })
+          .catch(function (error) {
+            console.log(error);
+          });
+
+      await  axios.post('http://localhost:8000/msPython', clienteGo)
+          .then(function (response) {
+            console.log(response.data);
+          })
+          .catch(function (error) {
+            console.log(error);
+          });
+
+
+    }else{
+      console.log('Token incorrecto. Sin acceso');
+
+    }
+    
 
   }
 
-    //console.log(usuariosData);
-    //Envio la data a Go mediante un post, me responde y almaceno la data procesada en respGo
-    /*const respGo = await axios.post('http://localhost:3700/webhook', clientesData).then(function (response) {
-      console.log(response.data);
-    })
-    .catch(function (error) {
-      console.log(error);
-    });;
+   
 
-    //Envio la data a Python, que luego procesara y enviara un mail a mi correo para comprobar que se han comunicado los microservicios.
-    axios.post('http://localhost:3700/webhook', {
-          peticion1: String(peticiones[0]),
-          peticion2: String(peticiones[1]),
-          peticion3: String(peticiones[2]),
-          peticion4: String(peticiones[3]),
-          peticion5: String(peticiones[4]),
-        })
-        .then(function (response) {
-          console.log(response.data);
-        })
-        .catch(function (error) {
-          console.log(error);
-        });*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
